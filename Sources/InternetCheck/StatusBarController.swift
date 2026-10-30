@@ -47,7 +47,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         ticker.start { [weak self] in
             guard let self else { return }
-            self.connectionItem?.title = ConnectionFormat.line(self.connection())
+            let line = ConnectionFormat.line(self.connection())
+            self.connectionItem?.attributedTitle = Self.infoText(line, secondary: true)
         }
     }
 
@@ -70,10 +71,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     private func info(_ text: String, weight: NSFont.Weight = .regular, secondary: Bool = false) -> NSMenuItem {
-        .info(NSAttributedString(string: text, attributes: [
+        .info(Self.infoText(text, weight: weight, secondary: secondary))
+    }
+
+    /// Shared by menu building and the live tick, so an updated line keeps its styling.
+    static func infoText(_ text: String, weight: NSFont.Weight = .regular, secondary: Bool = false)
+        -> NSAttributedString {
+        NSAttributedString(string: text, attributes: [
             .font: NSFont.systemFont(ofSize: 13, weight: weight),
             .foregroundColor: secondary ? NSColor.secondaryLabelColor : NSColor.labelColor
-        ]))
+        ])
     }
 
     @objc private func refresh() { onRefresh?() }

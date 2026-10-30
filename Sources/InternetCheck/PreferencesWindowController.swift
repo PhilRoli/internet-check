@@ -14,8 +14,8 @@ final class PreferencesWindowController: NSObject, NSTextFieldDelegate {
         window.isReleasedWhenClosed = false
         return window
     }()
-    private let addField = NSTextField()
-    private let addError = NSTextField(labelWithString: "")
+    let addField = NSTextField()
+    let addError = NSTextField(labelWithString: "")
     private let intervalField = NSTextField()
 
     init(config: AppConfig, loginItem: LoginItemController? = nil) {
@@ -126,7 +126,7 @@ final class PreferencesWindowController: NSObject, NSTextFieldDelegate {
         rebuild()
     }
 
-    @objc private func addTarget() {
+    @objc func addTarget() {
         guard let target = AppConfig.parseTarget(addField.stringValue) else {
             addError.stringValue = "Enter a valid URL or IP address"
             return
@@ -137,6 +137,8 @@ final class PreferencesWindowController: NSObject, NSTextFieldDelegate {
             return
         }
         config.targets.append(target)
+        addField.stringValue = ""
+        addError.stringValue = ""
         commit()
         rebuild()
     }
