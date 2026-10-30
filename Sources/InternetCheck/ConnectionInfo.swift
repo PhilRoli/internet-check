@@ -6,6 +6,8 @@ struct ConnectionInfo: Equatable {
     var serviceName: String?
     var interface: String?
     var ipAddress: String?
+    /// The default route runs through a VPN tunnel; the other fields describe the physical link underneath.
+    var viaVPN = false
 
     static let none = ConnectionInfo()
 }
@@ -17,6 +19,7 @@ protocol ConnectionInfoProviding {
 enum ConnectionFormat {
     static func line(_ info: ConnectionInfo) -> String {
         let parts = [info.serviceName, info.interface, info.ipAddress].compactMap { $0 }
+            + (info.viaVPN ? ["VPN"] : [])
         return parts.isEmpty ? "No connection" : parts.joined(separator: " · ")
     }
 }
@@ -28,15 +31,41 @@ struct SystemConnectionInfoProvider: ConnectionInfoProviding {
               let global = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
               let bsdName = global["PrimaryInterface"] as? String
         else { return .none }
-        return ConnectionInfo(serviceName: serviceName(for: bsdName), interface: bsdName, ipAddress: ipv4(of: bsdName))
+        let services = networkServices()
+        guard Self.isTunnel(bsdName) else {
+            return ConnectionInfo(serviceName: name(of: bsdName, in: services), interface: bsdName,
+                                  ipAddress: ipv4(of: bsdName))
+        }
+        // VPN: report the first physical service (in the user's service order) that has an address.
+        for (service, bsd) in services where !Self.isTunnel(bsd) {
+            if let ip = ipv4(of: bsd) {
+                return ConnectionInfo(serviceName: SCNetworkServiceGetName(service) as String?, interface: bsd,
+                                      ipAddress: ip, viaVPN: true)
+            }
+        }
+        return ConnectionInfo(serviceName: name(of: bsdName, in: services), interface: bsdName,
+                              ipAddress: ipv4(of: bsdName), viaVPN: true)
     }
 
-    private func serviceName(for bsdName: String) -> String? {
+    static func isTunnel(_ bsdName: String) -> Bool {
+        ["utun", "ppp", "ipsec", "tun", "tap"].contains { bsdName.hasPrefix($0) }
+    }
+
+    /// Network services paired with their BSD interface names, in the user's service order.
+    private func networkServices() -> [(SCNetworkService, String)] {
         guard let prefs = SCPreferencesCreate(nil, "InternetCheck" as CFString, nil),
-              let services = SCNetworkServiceCopyAll(prefs) as? [SCNetworkService] else { return nil }
-        return services.first { service in
-            SCNetworkServiceGetInterface(service).flatMap(SCNetworkInterfaceGetBSDName) as String? == bsdName
-        }.flatMap { SCNetworkServiceGetName($0) as String? }
+              let all = SCNetworkServiceCopyAll(prefs) as? [SCNetworkService] else { return [] }
+        let order = SCNetworkSetCopyCurrent(prefs).flatMap { SCNetworkSetGetServiceOrder($0) as? [String] } ?? []
+        let rank = { (service: SCNetworkService) in
+            order.firstIndex(of: SCNetworkServiceGetServiceID(service) as String? ?? "") ?? Int.max
+        }
+        return all.sorted { rank($0) < rank($1) }.compactMap { service in
+            SCNetworkServiceGetInterface(service).flatMap(SCNetworkInterfaceGetBSDName).map { (service, $0 as String) }
+        }
+    }
+
+    private func name(of bsdName: String, in services: [(SCNetworkService, String)]) -> String? {
+        services.first { $0.1 == bsdName }.flatMap { SCNetworkServiceGetName($0.0) as String? }
     }
 
     private func ipv4(of bsdName: String) -> String? {
