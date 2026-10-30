@@ -32,6 +32,12 @@ struct SystemConnectionInfoProvider: ConnectionInfoProviding {
               let bsdName = global["PrimaryInterface"] as? String
         else { return .none }
         let services = networkServices()
+        let serviceID = global["PrimaryService"] as? String
+        guard Self.isVPN(interface: bsdName, serviceID: serviceID) else {
+            let dynamicName = serviceID.flatMap(Self.displayName(forServiceID:))
+            return ConnectionInfo(serviceName: dynamicName ?? name(of: bsdName, in: services), interface: bsdName,
+                                  ipAddress: ipv4(of: bsdName))
+        }
         guard Self.isTunnel(bsdName) else {
             return ConnectionInfo(serviceName: name(of: bsdName, in: services), interface: bsdName,
                                   ipAddress: ipv4(of: bsdName))
@@ -49,6 +55,20 @@ struct SystemConnectionInfoProvider: ConnectionInfoProviding {
 
     static func isTunnel(_ bsdName: String) -> Bool {
         ["utun", "ppp", "ipsec", "tun", "tap"].contains { bsdName.hasPrefix($0) }
+    }
+
+    /// A tunnel is a VPN unless its service is a named dynamic one (e.g. `usbtether`). Real VPN services
+    /// register under a UUID service ID.
+    static func isVPN(interface: String, serviceID: String?) -> Bool {
+        guard isTunnel(interface) else { return false }
+        guard let serviceID else { return true }
+        return UUID(uuidString: serviceID) != nil
+    }
+
+    /// Display name for dynamic (non-UUID) services that have no entry in the network preferences.
+    static func displayName(forServiceID id: String) -> String? {
+        guard UUID(uuidString: id) == nil else { return nil }
+        return ["usbtether": "USB Tethering"][id] ?? id
     }
 
     /// Network services paired with their BSD interface names, in the user's service order.
