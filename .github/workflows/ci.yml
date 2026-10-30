@@ -1,0 +1,12 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  ci:
+    uses: PhilRoli/menubar-kit/.github/workflows/ci.yml@v1
+    with:
+      app: InternetCheck
