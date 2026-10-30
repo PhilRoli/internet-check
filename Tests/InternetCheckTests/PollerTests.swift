@@ -102,4 +102,24 @@ final class PollerTests: XCTestCase {
         XCTAssertEqual(poller.state.status, .online)
         poller.stop()
     }
+
+    func testWakeDoesNotConfirmTransitionFromPreSleepCycle() async {
+        let sw = Switch()
+        var cfg = config(["a"])
+        cfg.interval = 3600
+        let poller = Poller(prober: SwitchProber(sw: sw), config: cfg)
+        var transitions: [CheckState.Status] = []
+        poller.onTransition = { transitions.append($0) }
+        await poller.runCycle()
+        await poller.runCycle()
+        sw.online = false
+        await poller.runCycle() // pre-sleep failure, not yet confirmed
+
+        let updated = expectation(description: "post-wake cycle")
+        poller.onUpdate = { _ in updated.fulfill() }
+        poller.didWake()
+        await fulfillment(of: [updated], timeout: 2)
+        poller.stop()
+        XCTAssertEqual(transitions, [], "the first cycle after wake must not confirm on its own")
+    }
 }
