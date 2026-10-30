@@ -25,7 +25,8 @@ struct AppConfig: Codable, Equatable, DefaultInitializable {
 
     /// Web targets only count with their known-good reply so captive-portal login pages read as offline.
     static let builtInTargets: [Target] = [
-        builtIn("apple-captive", "Apple", "https://captive.apple.com/hotspot-detect.html", status: 200, body: "Success"),
+        builtIn("apple-captive", "Apple", "https://captive.apple.com/hotspot-detect.html",
+                status: 200, body: "Success"),
         builtIn("apple-success", "Apple (www)", "https://www.apple.com/library/test/success.html",
                 status: 200, body: "Success"),
         builtIn("cloudflare", "Cloudflare", "https://one.one.one.one/cdn-cgi/trace", status: 200, body: "colo="),

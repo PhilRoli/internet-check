@@ -12,7 +12,8 @@ private final class LocalServer {
             conn.start(queue: .global())
             guard httpReply else { return }
             conn.receive(minimumIncompleteLength: 1, maximumLength: 4096) { _, _, _, _ in
-                let reply = "HTTP/1.1 \(status) X\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
+                let head = "HTTP/1.1 \(status) X\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n"
+                let reply = head + body
                 conn.send(content: Data(reply.utf8), completion: .contentProcessed { _ in conn.cancel() })
             }
         }

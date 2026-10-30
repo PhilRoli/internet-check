@@ -5,7 +5,8 @@ protocol Prober: Sendable {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool
 }
 
-/// URL targets get an HTTP request (any response counts unless the target sets an expected status/body); bare hosts / IPs get a TCP connect (443 unless `:port`).
+/// URL targets get an HTTP request (any response counts unless the target sets an expected status/body).
+/// Bare hosts / IPs get a TCP connect (443 unless `:port`).
 struct DefaultProber: Prober {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool {
         if target.address.contains("://") {
@@ -29,7 +30,7 @@ struct DefaultProber: Prober {
             guard let http = response as? HTTPURLResponse else { return false }
             if let status = target.expectedStatus, http.statusCode != status { return false }
             if let body = target.expectedBody {
-                return String(decoding: data, as: UTF8.self).contains(body)
+                return (String(bytes: data, encoding: .utf8) ?? "").contains(body)
             }
             return true
         } catch {
