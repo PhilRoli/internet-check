@@ -41,13 +41,16 @@ final class Poller {
 
     func didWake() { restart() }
 
+    /// Forgets the previous cycle so a burst of restarts (wake, path changes) cannot confirm a transition
+    /// on its own; confirmation needs a later, interval-spaced cycle.
     private func restart() {
+        lastRaw = nil
         loopTask?.cancel()
         loopTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.runCycle()
-                let seconds = max(self.config.interval, AppConfig.minInterval)
+                let seconds = AppConfig.clampedInterval(self.config.interval)
                 try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             }
         }
