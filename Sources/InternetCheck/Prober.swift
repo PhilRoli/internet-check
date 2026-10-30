@@ -5,17 +5,17 @@ protocol Prober: Sendable {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool
 }
 
-/// URL targets get an HTTP HEAD (any response counts); bare hosts / IPs get a TCP connect (443 unless `:port`).
+/// URL targets get an HTTP request (any response counts unless the target sets an expected status/body); bare hosts / IPs get a TCP connect (443 unless `:port`).
 struct DefaultProber: Prober {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool {
         if target.address.contains("://") {
-            return await probeURL(target.address, timeout: timeout)
+            return await probeURL(target, timeout: timeout)
         }
         return await probeTCP(target.address, timeout: timeout)
     }
 
-    private func probeURL(_ address: String, timeout: TimeInterval) async -> Bool {
-        guard let url = URL(string: address) else { return false }
+    private func probeURL(_ target: Target, timeout: TimeInterval) async -> Bool {
+        guard let url = URL(string: target.address) else { return false }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout
@@ -23,10 +23,15 @@ struct DefaultProber: Prober {
         let session = URLSession(configuration: config)
         defer { session.invalidateAndCancel() }
         var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
+        request.httpMethod = target.expectedBody == nil ? "HEAD" : "GET"
         do {
-            let (_, response) = try await session.data(for: request)
-            return response is HTTPURLResponse
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return false }
+            if let status = target.expectedStatus, http.statusCode != status { return false }
+            if let body = target.expectedBody {
+                return String(decoding: data, as: UTF8.self).contains(body)
+            }
+            return true
         } catch {
             return false
         }
