@@ -9,7 +9,7 @@ macOS menubar app that checks whether you're online and shows which connection y
 
 ## Install
 ```sh
-brew install --cask PhilRoli/tap/internet-check
+brew install --cask PhilRoli/tap/internetcheck
 ```
 
 ## Development
