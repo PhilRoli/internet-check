@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "menubar-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PhilRoli/menubar-kit",
+      "state" : {
+        "revision" : "89e4e76db876109879acb5e087f93e6dd0266475",
+        "version" : "1.3.0"
+      }
+    }
+  ],
+  "version" : 2
+}

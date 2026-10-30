@@ -1,0 +1,17 @@
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: PhilRoli/menubar-kit/.github/workflows/release.yml@v1
+    with:
+      app: InternetCheck
+      dry_run: ${{ github.event_name == 'workflow_dispatch' }}
+    secrets: inherit
