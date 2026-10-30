@@ -41,4 +41,23 @@ final class ConnectionInfoTests: XCTestCase {
             XCTAssertFalse(SystemConnectionInfoProvider.isTunnel(name), name)
         }
     }
+
+    func testNamedTunnelServiceIsNotAVPN() {
+        XCTAssertFalse(SystemConnectionInfoProvider.isVPN(interface: "utun4", serviceID: "usbtether"))
+    }
+
+    func testUUIDOrUnknownTunnelServiceIsAVPN() {
+        XCTAssertTrue(SystemConnectionInfoProvider.isVPN(interface: "utun4", serviceID: UUID().uuidString))
+        XCTAssertTrue(SystemConnectionInfoProvider.isVPN(interface: "utun4", serviceID: nil))
+    }
+
+    func testPhysicalInterfaceIsNeverAVPN() {
+        XCTAssertFalse(SystemConnectionInfoProvider.isVPN(interface: "en0", serviceID: UUID().uuidString))
+    }
+
+    func testDisplayNameForDynamicServices() {
+        XCTAssertEqual(SystemConnectionInfoProvider.displayName(forServiceID: "usbtether"), "USB Tethering")
+        XCTAssertEqual(SystemConnectionInfoProvider.displayName(forServiceID: "foo"), "foo")
+        XCTAssertNil(SystemConnectionInfoProvider.displayName(forServiceID: UUID().uuidString))
+    }
 }
