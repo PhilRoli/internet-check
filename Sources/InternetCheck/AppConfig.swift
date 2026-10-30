@@ -8,6 +8,10 @@ struct Target: Codable, Equatable, Identifiable {
     var address: String
     var isBuiltIn: Bool
     var enabled: Bool
+    /// When set, only this HTTP status counts as reachable (captive portals answer 200/302 for everything).
+    var expectedStatus: Int?
+    /// When set, the response body must contain this text (forces a GET instead of HEAD).
+    var expectedBody: String?
 }
 
 struct AppConfig: Codable, Equatable, DefaultInitializable {
@@ -17,12 +21,20 @@ struct AppConfig: Codable, Equatable, DefaultInitializable {
     var interval: TimeInterval = 10
     var notificationsEnabled = false
 
+    /// Web targets only count with their known-good reply so captive-portal login pages read as offline.
     static let builtInTargets: [Target] = [
-        ("apple-captive", "Apple", "https://captive.apple.com/hotspot-detect.html"),
-        ("apple-success", "Apple (www)", "https://www.apple.com/library/test/success.html"),
-        ("cloudflare", "Cloudflare", "1.1.1.1"),
-        ("google", "Google", "https://connectivitycheck.gstatic.com/generate_204")
-    ].map { Target(id: $0.0, name: $0.1, address: $0.2, isBuiltIn: true, enabled: true) }
+        builtIn("apple-captive", "Apple", "https://captive.apple.com/hotspot-detect.html", status: 200, body: "Success"),
+        builtIn("apple-success", "Apple (www)", "https://www.apple.com/library/test/success.html",
+                status: 200, body: "Success"),
+        builtIn("cloudflare", "Cloudflare", "https://one.one.one.one/cdn-cgi/trace", status: 200, body: "colo="),
+        builtIn("google", "Google", "https://connectivitycheck.gstatic.com/generate_204", status: 204)
+    ]
+
+    private static func builtIn(_ id: String, _ name: String, _ address: String,
+                                status: Int, body: String? = nil) -> Target {
+        Target(id: id, name: name, address: address, isBuiltIn: true, enabled: true,
+               expectedStatus: status, expectedBody: body)
+    }
 
     mutating func normalize() {
         interval = max(interval, AppConfig.minInterval)

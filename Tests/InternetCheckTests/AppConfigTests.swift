@@ -43,3 +43,17 @@ final class AppConfigTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(AppConfig.self, from: data), config)
     }
 }
+
+final class BuiltInTargetTests: XCTestCase {
+    func testBuiltInURLTargetsRequireTheExpectedReply() {
+        let urls = AppConfig().targets.filter { $0.address.contains("://") }
+        XCTAssertFalse(urls.isEmpty)
+        XCTAssertTrue(urls.allSatisfy { $0.expectedStatus != nil }, "portal pages must not count as online")
+    }
+
+    func testCustomTargetsAcceptAnyAnswer() {
+        let target = AppConfig.parseTarget("https://example.com")
+        XCTAssertNil(target?.expectedStatus)
+        XCTAssertNil(target?.expectedBody)
+    }
+}
