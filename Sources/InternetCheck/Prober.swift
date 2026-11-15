@@ -1,8 +1,5 @@
 import Foundation
 import Network
-import os
-
-private let log = Logger(subsystem: "InternetCheck", category: "probe")
 
 protocol Prober: Sendable {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool
@@ -37,7 +34,6 @@ struct DefaultProber: Prober {
             }
             return true
         } catch {
-            log.error("probe failed \(Self.logHost(target.address), privacy: .public): \((error as NSError).domain, privacy: .public) \((error as NSError).code)")
             return false
         }
     }
@@ -62,21 +58,13 @@ struct DefaultProber: Prober {
                 switch state {
                 case .ready: finish(true)
                 case .failed, .cancelled: finish(false)
-                case .waiting(let error):
-                    log.error("tcp waiting \(address, privacy: .public): \(String(describing: error), privacy: .public)")
-                    finish(false)
+                case .waiting: finish(false)
                 default: break
                 }
             }
             connection.start(queue: queue)
             queue.asyncAfter(deadline: .now() + timeout) { finish(false) }
         }
-    }
-
-    /// Host only: custom URL targets may carry userinfo or query tokens that must not reach the log.
-    static func logHost(_ address: String) -> String {
-        guard address.contains("://") else { return address }
-        return URL(string: address)?.host ?? "invalid-url"
     }
 
     static func splitHostPort(_ address: String) -> (String, UInt16) {
