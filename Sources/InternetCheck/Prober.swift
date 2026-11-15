@@ -1,5 +1,8 @@
 import Foundation
 import Network
+import os
+
+private let log = Logger(subsystem: "InternetCheck", category: "probe")
 
 protocol Prober: Sendable {
     func probe(_ target: Target, timeout: TimeInterval) async -> Bool
@@ -34,6 +37,7 @@ struct DefaultProber: Prober {
             }
             return true
         } catch {
+            log.error("probe failed \(target.address, privacy: .public): \((error as NSError).domain, privacy: .public) \((error as NSError).code)")
             return false
         }
     }
@@ -58,7 +62,9 @@ struct DefaultProber: Prober {
                 switch state {
                 case .ready: finish(true)
                 case .failed, .cancelled: finish(false)
-                case .waiting: finish(false)
+                case .waiting(let error):
+                    log.error("tcp waiting \(address, privacy: .public): \(String(describing: error), privacy: .public)")
+                    finish(false)
                 default: break
                 }
             }
