@@ -93,6 +93,21 @@ final class PollerTests: XCTestCase {
         XCTAssertEqual(transitions, [.offline, .online])
     }
 
+    func testSingleFailedCycleDoesNotShowOffline() async {
+        let sw = Switch()
+        let poller = Poller(prober: SwitchProber(sw: sw), config: config(["a"]))
+        var updates: [CheckState.Status] = []
+        poller.onUpdate = { updates.append($0.status) }
+        await poller.runCycle()
+        sw.online = false
+        await poller.runCycle()
+        XCTAssertEqual(poller.state.status, .online, "one failed round is held back")
+        XCTAssertEqual(updates, [.online])
+        await poller.runCycle()
+        XCTAssertEqual(poller.state.status, .offline)
+        XCTAssertEqual(updates, [.online, .offline])
+    }
+
     func testRefreshNowRunsImmediately() async {
         let poller = Poller(prober: FakeProber(answers: ["a": true]), config: config(["a"]))
         let updated = expectation(description: "update")
@@ -115,10 +130,8 @@ final class PollerTests: XCTestCase {
         sw.online = false
         await poller.runCycle() // pre-sleep failure, not yet confirmed
 
-        let updated = expectation(description: "post-wake cycle")
-        poller.onUpdate = { _ in updated.fulfill() }
         poller.didWake()
-        await fulfillment(of: [updated], timeout: 2)
+        try? await Task.sleep(nanoseconds: 300_000_000) // post-wake offline round is held, so no update to await
         poller.stop()
         XCTAssertEqual(transitions, [], "the first cycle after wake must not confirm on its own")
     }
