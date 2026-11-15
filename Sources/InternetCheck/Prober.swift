@@ -37,7 +37,7 @@ struct DefaultProber: Prober {
             }
             return true
         } catch {
-            log.error("probe failed \(target.address, privacy: .public): \((error as NSError).domain, privacy: .public) \((error as NSError).code)")
+            log.error("probe failed \(Self.logHost(target.address), privacy: .public): \((error as NSError).domain, privacy: .public) \((error as NSError).code)")
             return false
         }
     }
@@ -71,6 +71,12 @@ struct DefaultProber: Prober {
             connection.start(queue: queue)
             queue.asyncAfter(deadline: .now() + timeout) { finish(false) }
         }
+    }
+
+    /// Host only: custom URL targets may carry userinfo or query tokens that must not reach the log.
+    static func logHost(_ address: String) -> String {
+        guard address.contains("://") else { return address }
+        return URL(string: address)?.host ?? "invalid-url"
     }
 
     static func splitHostPort(_ address: String) -> (String, UInt16) {
