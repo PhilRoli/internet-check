@@ -24,7 +24,7 @@ final class Poller {
     private var lastRaw: CheckState.Status?
     private var confirmed: CheckState.Status?
 
-    init(prober: Prober, config: AppConfig, probeTimeout: TimeInterval = 3) {
+    init(prober: Prober, config: AppConfig, probeTimeout: TimeInterval = 6) {
         self.prober = prober
         self.config = config
         self.probeTimeout = probeTimeout
@@ -69,9 +69,14 @@ final class Poller {
         }
         guard !Task.isCancelled else { return }
         let status: CheckState.Status = targets.isEmpty ? .noTargets : (reachable > 0 ? .online : .offline)
-        state = CheckState(status: status, reachable: reachable, total: targets.count, checkedAt: Date())
+        // A first all-failed round after being online is held back: link stalls (cell handover, wake)
+        // usually clear within a cycle. Offline shows once a second consecutive round agrees.
+        let holdOffline = status == .offline && lastRaw != .offline && state.status == .online
+        if !holdOffline {
+            state = CheckState(status: status, reachable: reachable, total: targets.count, checkedAt: Date())
+        }
         debounce(status)
-        onUpdate?(state)
+        if !holdOffline { onUpdate?(state) }
     }
 
     private func debounce(_ status: CheckState.Status) {
